@@ -10,6 +10,7 @@ CLI entry point.
 from __future__ import annotations
 import argparse
 import logging
+import os
 import sys
 
 import numpy as np
@@ -34,6 +35,10 @@ TIMEFRAME_MINUTES = {"M1": 1, "M5": 5, "M15": 15, "M30": 30, "H1": 60, "H4": 240
 
 
 def load_config(path: str = "config.yaml") -> dict:
+    # Resolve relative to this file's directory so the system works
+    # regardless of the working directory the user invokes it from.
+    if not os.path.isabs(path):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
     with open(path) as f:
         return yaml.safe_load(f)
 
@@ -52,8 +57,16 @@ def load_data(cfg: dict) -> pd.DataFrame:
 
 def build_forecaster(cfg: dict) -> KronosForecaster:
     k = cfg["kronos"]
-    return KronosForecaster(tokenizer_repo=k["tokenizer_repo"], model_repo=k["model_repo"],
-                             max_context=k["max_context"], device=k["device"])
+    return KronosForecaster(
+        tokenizer_repo=k["tokenizer_repo"],
+        model_repo=k["model_repo"],
+        max_context=k["max_context"],
+        device=k["device"],
+        vendor_path=k.get("vendor_path", "vendor/Kronos"),
+        T=k.get("T", 1.0),
+        top_p=k.get("top_p", 0.9),
+        top_k=k.get("top_k", 0),
+    )
 
 
 def cmd_research(cfg: dict):

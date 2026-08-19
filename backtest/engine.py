@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from kronos_engine.forecaster import BaseForecaster
+from data.loader import to_kronos_frame
 from features.forecast_features import extract_ensemble, extract_single
 from regime.filters import compute_regime
 from signals.engine import score_signal, Decision
@@ -134,9 +135,7 @@ def run_backtest(df: pd.DataFrame, forecaster: BaseForecaster, cfg: dict,
             break  # not enough room left to forecast a full horizon
 
         x_ts = hist["timestamp"]
-        x_df = hist[["open", "high", "low", "close", "volume"]].copy()
-        if "amount" in hist.columns:
-            x_df["amount"] = hist["amount"]
+        x_df = to_kronos_frame(hist)  # always provides the 6 columns Kronos expects
 
         current_price = row["close"]
 
