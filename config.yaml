@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# Kronos Trading System — central configuration
+# ---------------------------------------------------------------------------
+
+instrument:
+  symbol: "EURUSD"
+  timeframe: "M5"          # M1, M5, M15, H1 ...
+  pip_size: 0.0001
+  contract_size: 100000
+  point_value: 10.0        # $ per pip per 1.0 lot (approx, override per broker)
+
+data:
+  source: "csv"            # "csv" or "mt5"
+  csv_path: "data/sample/EURUSD_M5.csv"
+  mt5:
+    login: null
+    password: null
+    server: null
+    n_bars: 5000
+
+kronos:
+  tokenizer_repo: "NeoQuasar/Kronos-Tokenizer-base"
+  model_repo: "NeoQuasar/Kronos-base"
+  max_context: 512
+  lookback: 400             # historical candles fed to the model
+  pred_len: 24               # forecast horizon (candles)
+  T: 1.0                     # sampling temperature
+  top_p: 0.9
+  top_k: 0
+  ensemble_size: 20          # independent predict() calls to build a real distribution
+  device: null                # null = auto-detect (cuda/mps/cpu)
+
+signal:
+  min_expected_return: 0.0015      # 0.15% — must clear this after cost buffer
+  min_bullish_probability: 0.60
+  min_bearish_probability: 0.60
+  max_forecast_volatility: 0.006
+  score_long_threshold: 5
+  score_short_threshold: -5
+  weights:
+    expected_return: 2
+    path_probability: 2
+    volatility_ok: 1
+    trend_alignment: 1
+    path_consistency: 1
+
+regime:
+  trend_fast_ma: 20
+  trend_slow_ma: 100
+  atr_period: 14
+  max_atr_percentile: 0.90     # reject signals in extreme-vol regimes
+  session_filter:
+    enabled: true
+    allowed_hours_utc: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+  max_spread_pips: 2.0
+
+risk:
+  account_size: 1000.0
+  risk_per_trade_pct: 0.5        # % of account risked per trade
+  max_daily_loss_pct: 3.0
+  max_open_positions: 1
+  sl_mode: "atr"                  # "atr" or "forecast"
+  atr_sl_multiple: 1.5
+  atr_tp_multiple: 3.0
+  min_reward_risk: 1.5
+
+costs:
+  spread_pips: 1.2
+  commission_per_lot: 7.0          # round-turn, per 1.0 lot
+  slippage_pips: 0.3
+
+backtest:
+  train_years: 2
+  validation_years: 1
+  test_years: 1
+  walk_forward_windows: 4
+
+execution:
+  mode: "paper"                    # "paper" or "live"
+  live: false                      # hard safety switch — must be true AND mode=="live"
+  poll_seconds: 30

@@ -1,10 +1,12 @@
 numpy
 pandas
-torch>=2.0.0
+pyyaml
+matplotlib
 
-einops==0.8.1
-huggingface_hub==0.33.1
-matplotlib==3.9.3
-pandas==2.2.2
-tqdm==4.67.1
-safetensors==0.6.2
+# Optional, only needed for live/paper MT5 execution (Windows or Wine):
+# MetaTrader5
+
+# Kronos itself is not on PyPI — clone it and put it on your path:
+#   git clone https://github.com/shiyu-coder/Kronos.git vendor/Kronos
+#   pip install -r vendor/Kronos/requirements.txt
+# (torch, einops, huggingface_hub, safetensors, tqdm, etc.)
