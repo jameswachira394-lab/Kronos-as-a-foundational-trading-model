@@ -17,6 +17,8 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
+import os
+
 REQUIRED_COLS = ["timestamp", "open", "high", "low", "close"]
 
 
@@ -39,6 +41,19 @@ class DataQualityReport:
 
 
 def load_csv(path: str, tz: str | None = None) -> pd.DataFrame:
+    # Resolve relative path against project root if file doesn't exist in current working directory
+    if not os.path.isabs(path) and not os.path.exists(path):
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        alt_path = os.path.join(project_root, path)
+        if os.path.exists(alt_path):
+            path = alt_path
+
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"CSV file not found at '{path}'. Ensure the path is correct or run "
+            "run_demo.py to generate sample data."
+        )
+
     df = pd.read_csv(path)
     df.columns = [c.strip().lower() for c in df.columns]
 
@@ -60,20 +75,18 @@ def load_csv(path: str, tz: str | None = None) -> pd.DataFrame:
 
 
 def load_mt5(symbol: str, timeframe: str, n_bars: int,
-             login: int | None = None, password: str | None = None,
-             server: str | None = None) -> pd.DataFrame:
+             login: int | str | None = None, password: str | None = None,
+             server: str | None = None, path: str | None = None) -> pd.DataFrame:
     """
-    Pull candles directly from a running MT5 terminal.
-    Requires the `MetaTrader5` package and a terminal installed (Windows,
-    or Wine on Linux/Mac). Raises a clear error if unavailable rather than
-    silently falling back, so you never backtest against the wrong source.
+    Pull candles directly from a running MT5 terminal with broker credentials.
+    Supports environment variables MT5_LOGIN, MT5_PASSWORD, MT5_SERVER, MT5_PATH.
     """
     try:
         import MetaTrader5 as mt5
     except ImportError as e:
         raise RuntimeError(
-            "MetaTrader5 package not installed. `pip install MetaTrader5` "
-            "(Windows/Wine only) or use data.source: csv in config.yaml."
+            "MetaTrader5 package not installed. Run `pip install MetaTrader5` "
+            "(Windows/Wine only) or set `data.source: csv` in config.yaml."
         ) from e
 
     tf_map = {
@@ -84,8 +97,30 @@ def load_mt5(symbol: str, timeframe: str, n_bars: int,
     if timeframe not in tf_map:
         raise ValueError(f"Unsupported timeframe {timeframe}")
 
-    if not mt5.initialize(login=login, password=password, server=server):
-        raise RuntimeError(f"MT5 initialize() failed: {mt5.last_error()}")
+    # Fallback to env vars if not passed
+    login = login or os.getenv("MT5_LOGIN")
+    password = password or os.getenv("MT5_PASSWORD")
+    server = server or os.getenv("MT5_SERVER")
+    path = path or os.getenv("MT5_PATH")
+
+    init_kwargs = {}
+    if path:
+        init_kwargs["path"] = path
+    if login:
+        init_kwargs["login"] = int(login)
+    if password:
+        init_kwargs["password"] = str(password)
+    if server:
+        init_kwargs["server"] = str(server)
+
+    if not mt5.initialize(**init_kwargs):
+        err = mt5.last_error()
+        raise RuntimeError(f"MT5 initialize() failed: {err}. Verify broker login details & server in MT5.")
+
+    if login and password and server:
+        if not mt5.login(login=int(login), password=str(password), server=str(server)):
+            err = mt5.last_error()
+            raise RuntimeError(f"MT5 broker login failed for account {login} on {server}: {err}")
 
     try:
         rates = mt5.copy_rates_from_pos(symbol, tf_map[timeframe], 0, n_bars)

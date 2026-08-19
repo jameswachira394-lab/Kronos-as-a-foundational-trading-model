@@ -17,6 +17,8 @@ from datetime import datetime, timezone
 from signals.engine import Decision
 from risk.risk_engine import TradePlan
 
+import os
+
 log = logging.getLogger(__name__)
 
 
@@ -34,10 +36,35 @@ class MT5Executor:
             import MetaTrader5 as mt5
         except ImportError as e:
             raise RuntimeError("MetaTrader5 package required for live execution.") from e
-        if not mt5.initialize():
+
+        m = self.cfg.get("data", {}).get("mt5") or self.cfg.get("execution", {}).get("mt5", {})
+        login = m.get("login") or os.getenv("MT5_LOGIN")
+        password = m.get("password") or os.getenv("MT5_PASSWORD")
+        server = m.get("server") or os.getenv("MT5_SERVER")
+        path = m.get("path") or os.getenv("MT5_PATH")
+
+        init_kwargs = {}
+        if path:
+            init_kwargs["path"] = path
+        if login:
+            init_kwargs["login"] = int(login)
+        if password:
+            init_kwargs["password"] = str(password)
+        if server:
+            init_kwargs["server"] = str(server)
+
+        if not mt5.initialize(**init_kwargs):
             raise RuntimeError(f"MT5 initialize() failed: {mt5.last_error()}")
+
+        if login and password and server:
+            if not mt5.login(login=int(login), password=str(password), server=str(server)):
+                raise RuntimeError(f"MT5 broker login failed for account {login} on {server}: {mt5.last_error()}")
+
         self._mt5 = mt5
-        log.warning("LIVE TRADING ENABLED. Real orders will be sent.")
+        acc = mt5.account_info()
+        acc_id = acc.login if acc else "Unknown"
+        acc_server = acc.server if acc else "Unknown"
+        log.warning("LIVE TRADING ENABLED. Real orders will be sent. Account: %s @ %s", acc_id, acc_server)
 
     def execute(self, plan: TradePlan, symbol: str) -> dict:
         """Returns a fill/log record. Never raises on rejected plans."""

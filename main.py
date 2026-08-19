@@ -163,6 +163,96 @@ def cmd_paper_or_live(cfg: dict, mode: str):
     run_loop(cfg, forecaster, data_fetch_fn, build_signal_fn)
 
 
+def cmd_check_mt5(cfg: dict, args):
+    """Diagnose and test MetaTrader 5 terminal connection and broker account login."""
+    try:
+        import MetaTrader5 as mt5
+    except ImportError:
+        print("[ERROR] MetaTrader5 Python package is not installed.")
+        print("Install it with: pip install MetaTrader5 (Windows/Wine)")
+        sys.exit(1)
+
+    m = cfg.get("data", {}).get("mt5", {})
+    login = args.login or m.get("login") or os.getenv("MT5_LOGIN")
+    password = args.password or m.get("password") or os.getenv("MT5_PASSWORD")
+    server = args.server or m.get("server") or os.getenv("MT5_SERVER")
+    path = args.path or m.get("path") or os.getenv("MT5_PATH")
+
+    print("\n=======================================================")
+    print(" MetaTrader 5 Broker Connection Diagnostic")
+    print("=======================================================")
+    init_kwargs = {}
+    if path:
+        init_kwargs["path"] = path
+    if login:
+        init_kwargs["login"] = int(login)
+    if password:
+        init_kwargs["password"] = str(password)
+    if server:
+        init_kwargs["server"] = str(server)
+
+    print(f"Connecting to MT5 terminal... (path={path or 'default'}, login={login or 'active'}, server={server or 'active'})")
+    if not mt5.initialize(**init_kwargs):
+        print(f"[FAIL] mt5.initialize() failed. Error: {mt5.last_error()}")
+        print("\nTroubleshooting tips:")
+        print(" 1. Ensure MetaTrader 5 terminal is installed and open.")
+        print(" 2. If specifying path, ensure terminal64.exe path is correct.")
+        print(" 3. Check MT5 -> Tools -> Options -> Expert Advisors -> Allow Algo Trading.")
+        sys.exit(1)
+
+    if login and password and server:
+        print(f"Logging in to broker account {login} on {server}...")
+        if not mt5.login(login=int(login), password=str(password), server=str(server)):
+            print(f"[FAIL] mt5.login() failed. Error: {mt5.last_error()}")
+            mt5.shutdown()
+            sys.exit(1)
+
+    acc = mt5.account_info()
+    term = mt5.terminal_info()
+
+    if acc is None:
+        print("[FAIL] Could not retrieve account info. Make sure you are logged into a broker account in MT5.")
+        mt5.shutdown()
+        sys.exit(1)
+
+    print("\n--- Broker Account Info ---")
+    print(f" Account ID:       {acc.login}")
+    print(f" Name:             {acc.name}")
+    print(f" Server:           {acc.server}")
+    print(f" Company:          {acc.company}")
+    print(f" Currency:         {acc.currency}")
+    print(f" Balance:          {acc.balance} {acc.currency}")
+    print(f" Equity:           {acc.equity} {acc.currency}")
+    print(f" Leverage:         1:{acc.leverage}")
+    print(f" Trade Allowed:    {acc.trade_allowed}")
+    print(f" Trade Mode:       {acc.trade_mode}")
+
+    print("\n--- Terminal Info ---")
+    print(f" Terminal Connected: {term.connected}")
+    print(f" DLLs Allowed:      {term.dlls_allowed}")
+    print(f" Trade Allowed:     {term.trade_allowed}")
+    print(f" Terminal Path:     {term.path}")
+
+    symbol = cfg["instrument"]["symbol"]
+    print(f"\n--- Symbol Check ({symbol}) ---")
+    mt5.symbol_select(symbol, True)
+    tick = mt5.symbol_info_tick(symbol)
+    sym_info = mt5.symbol_info(symbol)
+
+    if tick is not None and sym_info is not None:
+        print(f" Symbol:           {symbol}")
+        print(f" Bid:              {tick.bid}")
+        print(f" Ask:              {tick.ask}")
+        print(f" Spread:           {sym_info.spread} points")
+        print(f" Point Size:       {sym_info.point}")
+        print(f" Digits:           {sym_info.digits}")
+        print("\n[SUCCESS] MT5 terminal and broker account are connected & fully functional!")
+    else:
+        print(f"[WARN] Could not fetch tick info for {symbol}. Verify symbol exists in your broker's Market Watch.")
+
+    mt5.shutdown()
+
+
 def _forecaster_or_mock(cfg: dict, mock: bool):
     if mock:
         from kronos_engine.forecaster import MockForecaster
@@ -172,10 +262,14 @@ def _forecaster_or_mock(cfg: dict, mock: bool):
 
 def main():
     parser = argparse.ArgumentParser(description="Kronos trading system")
-    parser.add_argument("command", choices=["research", "backtest", "walk-forward", "paper", "live"])
+    parser.add_argument("command", choices=["research", "backtest", "walk-forward", "paper", "live", "check-mt5"])
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--mock", action="store_true",
                          help="use MockForecaster instead of real Kronos (offline dev/testing)")
+    parser.add_argument("--login", type=int, help="MT5 Broker Account Login ID")
+    parser.add_argument("--password", type=str, help="MT5 Broker Account Password")
+    parser.add_argument("--server", type=str, help="MT5 Broker Server Name (e.g. ICMarkets-Demo)")
+    parser.add_argument("--path", type=str, help="Path to terminal64.exe executable")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -188,6 +282,8 @@ def main():
         cmd_walk_forward(cfg, mock=args.mock)
     elif args.command in ("paper", "live"):
         cmd_paper_or_live(cfg, args.command)
+    elif args.command == "check-mt5":
+        cmd_check_mt5(cfg, args)
 
 
 if __name__ == "__main__":
