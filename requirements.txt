@@ -1,12 +1,34 @@
+# ============================================================
+# Kronos Trading System — Python dependencies
+# ============================================================
+
+# ------------------------------------------------------------
+# CORE  (always needed — run_demo.py, backtest --mock, etc.)
+# ------------------------------------------------------------
 numpy
 pandas
 pyyaml
 matplotlib
+scipy          # financial metrics (may be used by metrics extensions)
 
-# Optional, only needed for live/paper MT5 execution (Windows or Wine):
-# MetaTrader5
-
-# Kronos itself is not on PyPI — clone it and put it on your path:
+# ------------------------------------------------------------
+# KRONOS AI  (needed for real forecasting with NeoQuasar/Kronos)
+# Kronos is NOT on PyPI. Clone it first:
 #   git clone https://github.com/shiyu-coder/Kronos.git vendor/Kronos
+# Then install its requirements:
 #   pip install -r vendor/Kronos/requirements.txt
-# (torch, einops, huggingface_hub, safetensors, tqdm, etc.)
+# Which typically pulls in:
+# ------------------------------------------------------------
+# torch>=2.0
+# einops
+# huggingface_hub
+# safetensors
+# tqdm
+# transformers
+
+# ------------------------------------------------------------
+# MT5 EXECUTION  (live/paper trading via MetaTrader 5)
+# Windows only (or Wine on Linux/macOS).
+# Uncomment when you are ready for live/paper execution:
+# ------------------------------------------------------------
+# MetaTrader5
