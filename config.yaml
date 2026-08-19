@@ -14,9 +14,9 @@ data:
   csv_path: "data/sample/EURUSD_M5.csv"
   mt5:
     login: 1200359496 # Broker Account Login ID (e.g. 12345678)
-    password: [James@8080] # Broker Account Password
-    server: JustMarkets-Demo # Broker Server Name (e.g. "ICMarkets-Demo" or "Exness-Real")
-    path: C:\\Program Files\\MetaTrader 5\\terminal64.exe # Optional path to terminal64.exe (e.g. "C:/Program Files/MetaTrader 5/terminal64.exe")
+    password: "James@8080" # Broker Account Password
+    server: "JustMarkets-Demo" # Broker Server Name (e.g. "ICMarkets-Demo" or "Exness-Real")
+    path: "C:/Program Files/MetaTrader 5/terminal64.exe" # Optional path to terminal64.exe (e.g. "C:/Program Files/MetaTrader 5/terminal64.exe")
     n_bars: 5000
 
 kronos:
