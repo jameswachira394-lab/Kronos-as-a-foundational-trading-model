@@ -59,15 +59,27 @@ class KronosForecaster(BaseForecaster):
                  max_context: int = 512, device: Optional[str] = None,
                  vendor_path: str = "vendor/Kronos", T: float = 1.0,
                  top_p: float = 0.9, top_k: int = 0):
-        if vendor_path not in sys.path and os.path.isdir(vendor_path):
-            sys.path.append(vendor_path)
+        # Resolve vendor_path to absolute: try relative to CWD first, then
+        # relative to this file's project root (handles any working directory).
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _abs_vendor = vendor_path if os.path.isabs(vendor_path) else os.path.join(_root, vendor_path)
+        if not os.path.isdir(_abs_vendor):
+            # Fallback: try relative to CWD
+            _abs_vendor = os.path.abspath(vendor_path)
+
+        # PREPEND so vendored `model` package takes priority over the project's
+        # own `model/` package — without this, `from model import …` hits the
+        # project's model/__init__.py and torch is never found.
+        if os.path.isdir(_abs_vendor) and _abs_vendor not in sys.path:
+            sys.path.insert(0, _abs_vendor)
         try:
             from model import Kronos, KronosTokenizer, KronosPredictor  # noqa
         except ImportError as e:
             raise RuntimeError(
                 "Could not import Kronos. Clone it next to this project:\n"
-                "  git clone https://github.com/shiyu-coder/Kronos.git vendor/Kronos\n"
-                "and pip install -r vendor/Kronos/requirements.txt"
+                f"  git clone https://github.com/shiyu-coder/Kronos.git {vendor_path}\n"
+                "and pip install -r vendor/Kronos/requirements.txt\n"
+                f"(looked in: {_abs_vendor})"
             ) from e
 
         log.info("Loading tokenizer %s and model %s ...", tokenizer_repo, model_repo)

@@ -21,6 +21,7 @@ data:
 kronos:
   tokenizer_repo: "NeoQuasar/Kronos-Tokenizer-base"
   model_repo: "NeoQuasar/Kronos-base"
+  vendor_path: "vendor/Kronos"   # path to cloned https://github.com/shiyu-coder/Kronos.git
   max_context: 512
   lookback: 400             # historical candles fed to the model
   pred_len: 24               # forecast horizon (candles)
